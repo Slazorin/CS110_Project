@@ -53,6 +53,7 @@ public class BTree{
 			long currKey = raf.readLong();
 			if(currKey == DEF_VALUE || currKey > key){
 				correctInd = ind;
+				shiftValues(correctInd);
 				break;
 			}
 		}
@@ -61,6 +62,20 @@ public class BTree{
 		raf.writeLong(vNumRec);
 		btNumRec++;
 
+	}
+
+	public void shiftValues(long correctInd) throws IOException{
+		for(long ind = btNumRec; ind > correctInd; ind--){
+			//read value from previous position
+			raf.seek(HEADER_BYTES+(ind-1)*BYTES_PER_NODE);
+			long prevKey = raf.readLong();
+			long prevVNumRec = raf.readLong();
+			//put values into next position
+			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
+			raf.writeLong(prevKey);
+			raf.writeLong(prevVNumRec);
+
+		}
 	}
 	
 }
