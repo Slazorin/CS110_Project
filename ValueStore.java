@@ -28,9 +28,10 @@ public class ValueStore{
 	}
 
 	public long addValue(String val) throws IOException{
-		raf.seek(8 + numRec*256);
+		raf.seek(8 + numRec*258);
+		byte[] byteArray = val.getBytes("UTF8");
 		raf.writeShort(val.length());
-		raf.writeBytes(val);
+		raf.write(byteArray);
 		raf.seek(INIT_RECORDS);
 		raf.writeLong(++numRec);
 
