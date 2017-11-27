@@ -47,8 +47,10 @@ public class BTree{
 		}
 
 		//find correct index for the new value
-		long correctInd = btNumRec; //default place to put new value is at the end of the list
-		for(long ind = 0; ind < btNumRec; ind++){
+		//3n+2 is used since every key is at every third number (adjusted since index starts at 0)
+		long availInd = 3*btNumRec+2; //first available index
+		long correctInd = availInd; //default place to put new value is at the end of the list
+		for(long ind = 2; ind < availInd; ind+=3){
 			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
 			long currKey = raf.readLong();
 			if(currKey == DEF_VALUE || currKey > key){
@@ -65,9 +67,9 @@ public class BTree{
 	}
 
 	public void shiftValues(long correctInd) throws IOException{
-		for(long ind = btNumRec; ind > correctInd; ind--){
+		for(long ind = 3*btNumRec+2; ind > correctInd; ind-=3){
 			//read value from previous position
-			raf.seek(HEADER_BYTES+(ind-1)*BYTES_PER_NODE);
+			raf.seek(HEADER_BYTES+(ind-3)*BYTES_PER_NODE);
 			long prevKey = raf.readLong();
 			long prevVNumRec = raf.readLong();
 			//put values into next position
