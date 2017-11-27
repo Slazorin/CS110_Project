@@ -15,6 +15,7 @@ public class BTree{
 			//make raf and file
 			raf = new RandomAccessFile(strFile, "rwd");
 			file.createNewFile();
+			
 
 			//when creating, putting first value as well
 			raf.writeLong(INIT_VAL); //number of records
