@@ -6,6 +6,11 @@ public class BTree{
 	public static final long INIT_VAL = 0;
 	public static final long DEF_VALUE = -1;
 	public static final int ARR_LENGTH = 20;
+	public static final int ORDER = 7;
+	public static final int BYTES_PER_ENTRY = 8;
+	public static final int BYTES_PER_NODE = ((3*ORDER)-1)*BYTES_PER_ENTRY;
+	public static final int HEADER_BYTES = 16;
+	public static long btNumRec = 0;
 	public static RandomAccessFile raf;
 
 	//constructor
@@ -15,7 +20,7 @@ public class BTree{
 			//make raf and file
 			raf = new RandomAccessFile(strFile, "rwd");
 			file.createNewFile();
-			
+
 
 			//when creating, putting first value as well
 			raf.writeLong(INIT_VAL); //number of records
@@ -27,33 +32,22 @@ public class BTree{
 	}
 
 	public void initRec() throws IOException {
-		for(int i = 0; i < ARR_LENGTH; i++){
+		for(int i = 0; i < BYTES_PER_NODE; i++){
 			raf.writeLong(DEF_VALUE);
 		}
 	}
 
-	public void addValue(long key, long numRec) throws IOException{
+	public void addValue(long key, long vNumRec) throws IOException{
 		raf.seek(INIT_POS);
-
 		if(raf.readLong()==0){
 			raf.seek(INIT_POS);
 			raf.writeLong(1);
 		}
-		raf.seek(32);
+		raf.seek(HEADER_BYTES+btNumRec*BYTES_PER_NODE);
 		raf.writeLong(key);
-		raf.writeLong(numRec);
+		raf.writeLong(vNumRec);
+		btNumRec++;
 
-
-
-
-
-
-
-		// raf.seek(8 + numRec*256);
-		// raf.writeShort(val.length());
-		// raf.writeBytes(val);
-		// raf.seek(INIT_RECORDS);
-		// raf.writeLong(++numRec);
 	}
 	
 }
