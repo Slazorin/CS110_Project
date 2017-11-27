@@ -13,12 +13,14 @@ public class btdb {
 		//checks if two file names have been typed
 		if(checkArgs(args)){
 			ValueStore vs = new ValueStore(valuesName);
+			BTree bt = new BTree(btName);
 			while(in.hasNext()){
 				String[] cmd = in.nextLine().split(" ");
 				if(cmd[FIRST_ARG].equals("insert")){
-
+					long numRec = vs.addValue(cmd[THIRD_ARG]);
+					bt.addValue(Long.parseLong(cmd[SECOND_ARG]), numRec);
 				}
-				vs.addValue(cmd[THIRD_ARG]);
+				
 			}
 		}
 	}

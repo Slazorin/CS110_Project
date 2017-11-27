@@ -27,17 +27,14 @@ public class ValueStore{
 		}
 	}
 
-	public void addValue(String val) throws IOException{
+	public long addValue(String val) throws IOException{
 		raf.seek(8 + numRec*256);
 		raf.writeShort(val.length());
 		raf.writeBytes(val);
 		raf.seek(INIT_RECORDS);
 		raf.writeLong(++numRec);
-	}
 
-	public void test() throws IOException{
-		raf.seek(1);
-		raf.writeBytes("Matt");
+		return (numRec-1);
 	}
 	
 }
