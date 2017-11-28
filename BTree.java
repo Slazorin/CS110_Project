@@ -34,7 +34,7 @@ public class BTree{
 
 	public void initRec() throws IOException {
 		for(int i = 0; i < NUM_POINTERS; i++){
-			raf.seek(HEADER_BYTES+i*BYTES_PER_NODE);
+			raf.seek(BYTES_PER_ENTRY*i+HEADER_BYTES);
 			raf.writeLong(DEF_VALUE);
 		}
 	}
@@ -53,7 +53,7 @@ public class BTree{
 		long availInd = 3*btNumRec+2; //first available index
 		long correctInd = availInd; //default place to put new value is at the end of the list
 		for(long ind = 2; ind < availInd; ind+=3){
-			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
+			raf.seek(HEADER_BYTES+ind*BYTES_PER_ENTRY);
 			long currKey = raf.readLong();
 			if(currKey == DEF_VALUE || currKey > key){
 				correctInd = ind;
@@ -61,7 +61,7 @@ public class BTree{
 				break;
 			}
 		}
-		raf.seek(HEADER_BYTES+correctInd*BYTES_PER_NODE);
+		raf.seek(HEADER_BYTES+correctInd*BYTES_PER_ENTRY);
 		raf.writeLong(key);
 		raf.writeLong(vNumRec);
 		btNumRec++;
@@ -71,25 +71,14 @@ public class BTree{
 	public void shiftValues(long correctInd) throws IOException{
 		for(long ind = 3*btNumRec+2; ind > correctInd; ind-=3){
 			//read value from previous position
-			raf.seek(HEADER_BYTES+(ind-3)*BYTES_PER_NODE);
+			raf.seek(HEADER_BYTES+(ind-3)*BYTES_PER_ENTRY);
 			long prevKey = raf.readLong();
 			long prevVNumRec = raf.readLong();
 			//put values into next position
-			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
+			raf.seek(HEADER_BYTES+ind*BYTES_PER_ENTRY);
 			raf.writeLong(prevKey);
 			raf.writeLong(prevVNumRec);
 
-		}
-	}
-
-	public void countNeg() throws IOException{
-		int counter = 0;
-		for(long ind = 0; ind < 20; ind++){
-			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
-			long currKey = raf.readLong();
-			if(currKey == DEF_VALUE){
-				System.out.println(DEF_VALUE);
-			}
 		}
 	}
 	
