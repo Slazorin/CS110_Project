@@ -14,7 +14,7 @@ public class btdb {
 		//checks if two file names have been typed
 		if(checkArgs(args)){
 			ValueStore vs = new ValueStore(valuesName);
-			BTree bt = new BTree(btName);
+			BTree bt = new BTree(btName, vs);
 			while(in.hasNext()){
 				String[] cmd = new String[NUM_COMMANDS];
 				cmd[FIRST_ARG] = in.next();
@@ -22,9 +22,12 @@ public class btdb {
 				cmd[THIRD_ARG] = in.nextLine().replaceFirst(" ","");
 				if(cmd[FIRST_ARG].equals("insert")){
 					long numRec = vs.addValue(cmd[THIRD_ARG]);
-					bt.addValue(Long.parseLong(cmd[SECOND_ARG]), numRec);
+					String verdict = bt.addValue(Long.parseLong(cmd[SECOND_ARG]), numRec);
+					System.out.println(verdict);
+				}else if(cmd[FIRST_ARG].equals("select")){
+					String verdict = bt.select(Long.parseLong(cmd[SECOND_ARG]));
+					System.out.println(verdict);
 				}
-				//bt.countNeg(); tester
 				
 			}
 		}

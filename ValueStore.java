@@ -38,4 +38,9 @@ public class ValueStore{
 		return (numRec-1);
 	}
 	
+	//fix format
+	public String getValue(long index) throws IOException{
+		raf.seek(8+index*258);
+		return raf.readUTF();
+	}
 }
