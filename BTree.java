@@ -10,6 +10,7 @@ public class BTree{
 	public static final int BYTES_PER_ENTRY = 8;
 	public static final int BYTES_PER_NODE = ((3*ORDER)-1)*BYTES_PER_ENTRY;
 	public static final int HEADER_BYTES = 16;
+	public static final int NUM_POINTERS = 3*ORDER-1;
 	public static long btNumRec = 0;
 	public static RandomAccessFile raf;
 
@@ -32,8 +33,9 @@ public class BTree{
 	}
 
 	public void initRec() throws IOException {
-		for(int i = 0; i < BYTES_PER_NODE; i++){
-			raf.writeByte(DEF_VALUE);
+		for(int i = 0; i < NUM_POINTERS; i++){
+			raf.seek(HEADER_BYTES+i*BYTES_PER_NODE);
+			raf.writeLong(DEF_VALUE);
 		}
 	}
 
@@ -77,6 +79,17 @@ public class BTree{
 			raf.writeLong(prevKey);
 			raf.writeLong(prevVNumRec);
 
+		}
+	}
+
+	public void countNeg() throws IOException{
+		int counter = 0;
+		for(long ind = 0; ind < 20; ind++){
+			raf.seek(HEADER_BYTES+ind*BYTES_PER_NODE);
+			long currKey = raf.readLong();
+			if(currKey == DEF_VALUE){
+				System.out.println(DEF_VALUE);
+			}
 		}
 	}
 	

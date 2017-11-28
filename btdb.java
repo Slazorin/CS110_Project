@@ -24,6 +24,7 @@ public class btdb {
 					long numRec = vs.addValue(cmd[THIRD_ARG]);
 					bt.addValue(Long.parseLong(cmd[SECOND_ARG]), numRec);
 				}
+				//bt.countNeg(); tester
 				
 			}
 		}
