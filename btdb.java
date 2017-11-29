@@ -30,8 +30,9 @@ public class btdb {
 				}else if(cmd[FIRST_ARG].equals("update")){
 					String verdict = bt.update(Long.parseLong(cmd[SECOND_ARG]),cmd[THIRD_ARG]);
 					System.out.println(verdict);
+				}else{
+					System.out.println("ERROR: invalid command.");
 				}
-				
 			}
 		}
 	}
