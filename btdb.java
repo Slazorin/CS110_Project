@@ -18,6 +18,9 @@ public class btdb {
 			while(in.hasNext()){
 				String[] cmd = new String[NUM_COMMANDS];
 				cmd[FIRST_ARG] = in.next();
+				if(cmd[FIRST_ARG].equals("exit")){
+					System.exit(0);
+				}
 				cmd[SECOND_ARG] = Integer.toString(in.nextInt());
 				cmd[THIRD_ARG] = in.nextLine().replaceFirst(" ","");
 				if(cmd[FIRST_ARG].equals("insert")){
