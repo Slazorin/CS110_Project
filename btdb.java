@@ -27,6 +27,9 @@ public class btdb {
 				}else if(cmd[FIRST_ARG].equals("select")){
 					String verdict = bt.select(Long.parseLong(cmd[SECOND_ARG]));
 					System.out.println(verdict);
+				}else if(cmd[FIRST_ARG].equals("update")){
+					String verdict = bt.update(Long.parseLong(cmd[SECOND_ARG]),cmd[THIRD_ARG]);
+					System.out.println(verdict);
 				}
 				
 			}

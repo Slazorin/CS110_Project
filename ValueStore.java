@@ -43,4 +43,9 @@ public class ValueStore{
 		raf.seek(8+index*258);
 		return raf.readUTF();
 	}
+
+	public void updateVal(long index, String newVal) throws IOException{
+		raf.seek(8+index*258);
+		raf.writeUTF(newVal);
+	}
 }

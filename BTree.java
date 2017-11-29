@@ -103,7 +103,6 @@ public class BTree{
 				break;
 			}
 		}
-
 		return isCopy;
 	}
 
@@ -115,13 +114,26 @@ public class BTree{
 		}else{
 			raf.seek(HEADER_BYTES+(index+1)*BYTES_PER_ENTRY);
 			long numOnVS = raf.readLong();
-			System.out.println(numOnVS);
 			String val = vs.getValue(numOnVS);
-			verdict = k + " ==> " + val + ".";
+			verdict = k + " ==> " + val;
 		}
 
 		return verdict;
 
+	}
+
+	public String update(long k, String newVal) throws IOException{
+		String verdict = "";
+		long index = isCopy(k);
+		if(index == DEF_VALUE){
+			verdict = "ERROR: " + k + " does not exist.";
+		}else{
+			raf.seek(HEADER_BYTES+(index+1)*BYTES_PER_ENTRY);
+			long numOnVS = raf.readLong();
+			vs.updateVal(numOnVS,newVal);
+			verdict = k + " updated" + ".";
+		}
+		return verdict;
 	}
 	
 }
