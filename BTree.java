@@ -1,15 +1,17 @@
 import java.io.*;
 import java.lang.*;
+import java.util.*;
 
 public class BTree{
 	public static final long INIT_POS = 0;
 	public static final long INIT_VAL = 0;
 	public static final long DEF_VALUE = -1;
-	public static final int ARR_LENGTH = 20;
+	public static final long ARR_LENGTH = 20;
 	public static final int ORDER = 7;
-	public static final int BYTES_PER_ENTRY = 8;
-	public static final int BYTES_PER_NODE = ((3*ORDER)-1)*BYTES_PER_ENTRY;
+	public static final long BYTES_PER_ENTRY = 8;
+	public static final long BYTES_PER_NODE = ((3*ORDER)-1)*BYTES_PER_ENTRY;
 	public static final int HEADER_BYTES = 16;
+	public static final int LAST_OFFSET = 18;
 	public static final int NUM_POINTERS = 3*ORDER-1;
 	public static long btNumRec = 0;
 	public static ValueStore vs;
@@ -57,26 +59,16 @@ public class BTree{
 			return verdict;
 		}
 
-		//find correct index for the new value
-		//3n+2 is used since every key is at every third number (adjusted since index starts at 0)
-		long availInd = 3*btNumRec+2; //first available index
-		long correctInd = availInd; //default place to put new value is at the end of the list
-		for(long ind = 2; ind < availInd; ind+=3){
-			raf.seek(HEADER_BYTES+ind*BYTES_PER_ENTRY);
-			long currKey = raf.readLong();
-			if(currKey == DEF_VALUE || currKey > key){
-				correctInd = ind;
-				shiftValues(correctInd);
-				break;
-			}
-		}
-		raf.seek(HEADER_BYTES+correctInd*BYTES_PER_ENTRY);
-		raf.writeLong(key);
-		raf.writeLong(vNumRec);
-		btNumRec++;
-		verdict = key + " inserted.";
-		return verdict;
+	}
 
+	public void shiftRecord(long copyFromIndex, long copyToIndex) throws IOException{
+		//Reads each long data from current record and writes to the target one
+		for( long i = 0; i < ARR_LENGTH*BYTES_PER_ENTRY; i += BYTES_PER_ENTRY ){
+			raf.seek(copyFromIndex);
+			long curr = raf.readLong();
+			raf.seek(copyToIndex);
+			raf.writeLong(curr);
+		}
 	}
 
 	public void shiftValues(long correctInd) throws IOException{
@@ -105,6 +97,21 @@ public class BTree{
 		}
 		return isCopy;
 	}
+
+	public boolean isFull(long node){
+		raf.seek(node*BYTES_PER_ENTRY*ARR_LENGTH + BYTES_PER_ENTRY*LAST_OFFSET);
+		long curr = raf.readLong();
+		if( curr == DEF_VALUE ){
+			return true;
+		}
+		return false;
+	}
+
+	public long getMedian(long[] keys, long i){
+		Arrays.sort(keys);
+		return keys[ORDER/2];
+	}
+
 
 	public String select(long k) throws IOException{
 		String verdict = "";
