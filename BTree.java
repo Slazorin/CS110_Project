@@ -17,8 +17,11 @@ public class BTree{
 	public static final int LAST_OFFSET = 18;
 	public static final int NUM_POINTERS = 3*ORDER-1;
 	public static final long MAX_KEYS = ORDER - 1;
-	public static final long END_OF_FILE = HEADER_BYTES + BYTES_PER_NODE*btNumRec; 
+	public static final long END_OF_FILE = HEADER_BYTES + BYTES_PER_NODE*(btNumRec+1); 
 	public static ValueStore vs;
+	public static currVsNum cvs;
+	public static ArrayList<ArrayList<Long>> pairMap;
+	public static ArrayList<Long> nodesMap;
 	public static RandomAccessFile raf;
 
 	//constructor
@@ -51,6 +54,7 @@ public class BTree{
 
 	public String addValue(long key, long vNumRec) throws IOException{
 		String verdict = "";
+		currVsNum = vNumRec; //vsNumRec of key to be inserted
 		//check if number of nodes is still 0
 		//change number of nodes to 1 if yes (first value to be inserted into file)
 		raf.seek(INIT_POS);
@@ -107,24 +111,45 @@ public class BTree{
 			return simpleInsert(key, vNumRec, initCorrRec, corrInd);
 		}else{
 			//insert all keys in corrNode into key array
-			long[] keys = new long[ORDER-1];
-			int arrInd = 0;
-			for(int ind = 2; ind < REC_LENGTH; ind+=3){
-				raf.seek(HEADER_BYTES+(initCorrRec*BYTES_PER_ENTRY*REC_LENGTH)+ind);
-				keys[arrInd++] = raf.readLong(); 
-			}
-			keys[arrInd-1] = key;
-
-			long median = getMedian(keys, key);
-			long promoted = key;
-			if(key != median)
-				promoted = median;
-			System.out.println("LOL"); //test
-			//long finCorrRec = findFree(initCorrRec);
-			//promote(promoted, )
+			promMap = new HashMap<HashMap<Long,Long>,Long>();
+			getPromoteList(key,initCorrRec);
+			verdict = key + " inserted.";
 		}
 
 		return verdict;
+
+	}
+
+	public void getPromoteList(long key, long node){
+		ArrayList<Long> keyVSMap = new ArrayList<Long>();
+		keyVSMap.add(key);
+		keyVSMap.add(cvs);
+		pairMap.add(keyVSMap);
+		nodesMap.add(node);
+
+		long toInsert = key;
+		boolean freeFnd = false;
+
+		while(!freeFnd){
+			ArrayList<Long> pMap = new ArrayList<Long>();
+			if(isFull(node)){
+				toInsert = getMedian(toInsert,node);
+				long parent = getParent(node);
+				if(toInsert == key){
+					nodesMap.set(0,parent);
+				}else{
+					long vsNumRec = findVSRec(toInsert);
+					pMap.add(toInsert);
+					pMap.add(vsNumRec);
+					pairMap.add(pMap);
+					nodesMap.add(parent);
+				}
+				node = parent;
+			}else{
+				freeFnd = true;
+			}
+
+		}
 
 	}
 
@@ -138,6 +163,8 @@ public class BTree{
 		return verdict;
 
 	}
+
+
 
 	public long childCount(long node) throws IOException{
 		long count = 0;
@@ -179,13 +206,20 @@ public class BTree{
 		raf.writeLong(vNumRec);
 	}
 
-	public void split(long promotedKey, long initCorrRec) throws IOException{
-		makeParentNode(promotedKey,0);
+	public void split(long promotedKey, long node) throws IOException{
+		for(promMap.Entry<HashMap<Long,Long>, Long> entry : promMap.entrySet()) {
+		    HashMap<Long,Long> pair = entry.getKey();
+		    long node = entry.getValue();
+		    for (Long num : promMap.keySet()) {
+			    simpleInsert(num,pair.get(num))
+			}
+		    
+		}
 	}
 
 	public long getParent(long node) throws IOException{
 		//Grabs the parent node record num
-		raf.seek(HEADER_BYTES + node*REC_LENGTH*BYTES_PER_ENTRY);
+		raf.seek(HEADER_BYTES + node*BYTES_PER_NODE);
 		long parentID = raf.readLong();
 		return parentID;
 	}
@@ -196,10 +230,9 @@ public class BTree{
 		raf.writeLong(newParent);
 	}
 
-
 	public void shiftRecord(long copyFromIndex, long copyToIndex) throws IOException{
 		//Reads each long data from current record and writes to the target one
-		for( long i = 0; i < REC_LENGTH*BYTES_PER_ENTRY; i += BYTES_PER_ENTRY ){
+		for( long i = 0; i < BYTES_PER_NODE; i += BYTES_PER_ENTRY ){
 			raf.seek(copyFromIndex);
 			long curr = raf.readLong();
 			raf.seek(copyToIndex);
@@ -223,10 +256,10 @@ public class BTree{
 		}
 	}
 
-	public long isCopy(long k) throws IOException{
+	public long isCopy(long k, long node) throws IOException{
 		long isCopy = DEF_VALUE;
 		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
-			raf.seek(HEADER_BYTES+ind*BYTES_PER_ENTRY);
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
 			long currKey = raf.readLong();
 			if(currKey == k){
 				isCopy = ind;
@@ -237,7 +270,7 @@ public class BTree{
 	}
 
 	public boolean isFull(long node) throws IOException{
-		raf.seek(node*BYTES_PER_ENTRY*REC_LENGTH + HEADER_BYTES + LAST_OFFSET*BYTES_PER_ENTRY);
+		raf.seek(node*BYTES_PER_NODE + HEADER_BYTES + LAST_OFFSET*BYTES_PER_ENTRY);
 		long curr = raf.readLong();
 		if( curr != DEF_VALUE ){
 			return true;
@@ -245,11 +278,28 @@ public class BTree{
 		return false;
 	}
 
-	public long getMedian(long[] keys, long i){
+	public long getMedian(long node, long key){
+		long[] keys = new long[ORDER];
+		int arrInd = 0;
+		for(int ind = 2; ind < REC_LENGTH; ind+=3){
+			raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
+			keys[arrInd++] = raf.readLong(); 
+
+		}
+		keys[arrInd] = key;
 		Arrays.sort(keys);
 		return keys[ORDER/2];
 	}
 
+	public long findVSRec(long key) throws IOException{
+		for(long ind = 2; ind < END_OF_FILE; ind += 3){
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
+			long currKey = raf.readLong();
+			if(currKey == k){
+				return raf.readLong();
+			}
+		}
+	}
 
 	public String select(long k) throws IOException{
 		String verdict = "";
@@ -264,7 +314,6 @@ public class BTree{
 		}
 
 		return verdict;
-
 	}
 
 	public String update(long k, String newVal) throws IOException{
