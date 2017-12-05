@@ -154,6 +154,7 @@ public class BTree{
 
 
 	public void split(long key, long node) throws IOException{
+		boolean newParent = false;
 		initRec(END_OF_FILE); //create new node for right child
 		long newChildNode = btNumRec++;
 
@@ -163,6 +164,7 @@ public class BTree{
 		if(parentNode == DEF_VALUE){
 			initRec(END_OF_FILE);
 			parentNode = btNumRec++;
+			newParent = true;
 			System.out.println("btNumRec: "+ btNumRec);//tester
 			System.out.println("New root happened");//tester
 		}
@@ -175,11 +177,15 @@ public class BTree{
 		//Promote median to its proper node
 		simpleInsert(keys[ORDER/2],VSRecs[ORDER/2],parentNode);
 		//Update child pointers of parent node
-		////Get index of childIDs
-		long startIndex = getChildIndex(parentNode,node);
+		////Get index of childIDs if new parent 
 		long[] childIDs = new long[MAX_SPLIT_NODES];
 		childIDs[0] = node; childIDs[1] = newChildNode;
-		setChildPointers(parentNode, startIndex, childIDs);
+		if(newParent){
+			setChildPointers(parentNode, 1, childIDs);
+		}else{
+			long startIndex = getChildIndex(parentNode,node);
+			setChildPointers(parentNode, startIndex, childIDs);
+		}
 		setParent(node,parentNode); setParent(newChildNode,parentNode);
 		if( node == root ){//if the node that splits is the root
 			raf.seek(BYTES_PER_ENTRY);
@@ -206,7 +212,7 @@ public class BTree{
 			raf.seek(HEADER_BYTES + parentNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
 			long childID = raf.readLong();
 			if( childID == nodeToSplit ) {
-				ind = childID;
+				ind = index;
 				break;
 			}
 		}
