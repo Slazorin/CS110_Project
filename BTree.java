@@ -109,7 +109,7 @@ public class BTree{
 					raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + index*BYTES_PER_ENTRY*2);
 					compareKey = raf.readLong();
 					if( compareKey == DEF_VALUE ){
-						raf.seek(BYTES_PER_ENTRY + record*BYTES_PER_NODE + (index+1)*BYTES_PER_ENTRY*2);// formula for correct childNode
+						raf.seek(BYTES_PER_ENTRY + record*BYTES_PER_NODE + (index)*BYTES_PER_ENTRY*2);// formula for correct childNode
 						long child = raf.readLong();
 						record = child;
 						break;
