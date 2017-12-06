@@ -168,11 +168,11 @@ public class BTree{
 		long newChildNode = btNumRec++;
 
 
-		long parentNode = getParent(node);
-		//long parentNode = parentNode; //default value is original node if parent does not split
-		if(parentNode == DEF_VALUE){
+		long parentLNode = getParent(node);
+		long parentRNode = parentLNode; //default value is original node if parent does not split
+		if(parentLNode == DEF_VALUE){
 			initRec(END_OF_FILE);
-			parentNode = btNumRec++;
+			parentLNode = btNumRec++;
 			newParent = true;
 		}
 		long[] keys = getKeys(key,node);
@@ -189,19 +189,19 @@ public class BTree{
 		if(newParent){
 			startIndex = 1;
 		}else{
-			startIndex = getChildIndex(parentNode,node);
+			startIndex = getChildIndex(parentLNode,node);
 		}
 
-		if(isFull(parentNode)){ //only add to stack if there's a chain split
+		if(isFull(parentLNode)){ //only add to stack if there's a chain split
 			//add to the stack before promoting median so that if parent needs to split, it can point to the new child  (which won't be stored in the 8th position if ever)
 			splitChildren.push(newChildNode); //push the new child of the parent
 			splitChildren.push( ((startIndex-1)/3) + 1 ); //push which child (ex. 0,1,2,etc.) the newChild will be for the parent (weird formula was used to get simple index from 1 to number of keys instead of 0-19)
-			//parentNode = btNumRec;
+			parentRNode = btNumRec;
 		}
 
 		
 		//Promote median to its proper node (if parent node is full, it will trigger a recursion)
-		addValue(keys[ORDER/2],VSRecs[ORDER/2],parentNode);
+		addValue(keys[ORDER/2],VSRecs[ORDER/2],parentLNode);
 
 		//Update child pointers of children if it has children
 		if(!splitChildren.isEmpty()){
@@ -220,10 +220,14 @@ public class BTree{
 				}
 			}
 			setChildforChild(node, newChildNode, childOfChildIDs); setChildforChild(node, node, childOfChildIDs);
+			//now that we've set the children for this parent, set all the children's parent ID to this parent
+			//won't set parent IDs of first 4 child nodes since they're parent is still the same
+			int arrSize = childOfChildIDs.length;
+			for(int i = arrSize/2; i < arrSize; i++){
+				setParent(childOfChildIDs[i], newChildNode);
+			}
 		}
 		
-
-
 		//delete shifted values from left node (original node) and promoted median
 		deleteShiftedValues(node);
 		//Insert key to be inserted to original node if it's not the median
@@ -237,15 +241,24 @@ public class BTree{
 		//Update child pointers of parent node
 		long[] childIDs = new long[MAX_SPLIT_NODES];
 		childIDs[0] = node; childIDs[1] = newChildNode;
-		System.out.println("Parent node is " + parentNode); //tester
-		setChildPointers(parentNode, startIndex, childIDs);
+		System.out.println("Parent node is " + parentLNode); //tester STILL CLASHES WITH THIS (parentLNode)
+		setChildPointers(parentLNode, startIndex, childIDs); ///STILL CLASHES WITH THIS (parentLNode)
 
 		//Update parent pointers of children
-		setParent(node,parentNode); setParent(newChildNode,parentNode);
+		if(isAChild(node,parentLNode)){
+			setParent(node, parentLNode);
+		}else{
+			setParent(node, parentRNode);
+		}
+		if(isAChild(newChildNode,parentLNode)){
+			setParent(newChildNode, parentLNode);
+		}else{
+			setParent(newChildNode, parentRNode);
+		}
 		
 		//if the node that splits is the root, update root number
 		if( node == root ){
-			root = parentNode;
+			root = parentLNode; //in this scenario parentLNode == parentRNode since creating a new root ensures that new root doesnt split
 			raf.seek(BYTES_PER_ENTRY);
 			raf.writeLong(root);
 		}
@@ -253,6 +266,17 @@ public class BTree{
 		//update record number
 		raf.seek(INIT_POS);
 		raf.writeLong(btNumRec);
+	}
+
+	public boolean isAChild(long childNode, long parentNode) throws IOException {
+		//checks if childNode is a child of parentNode
+		for(long i = 1; i < NUM_POINTERS; i+=3){
+			raf.seek(HEADER_BYTES + parentNode*BYTES_PER_NODE + i*BYTES_PER_ENTRY);
+			if(childNode == raf.readLong()){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void deleteShiftedValues(long origNode) throws IOException{
@@ -279,19 +303,19 @@ public class BTree{
 		
 		//if node is the same as the original node then copy first four else copy last four
 		if(origNode == newNode){
-			// int arrInd = 0;
-			// for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
-			// 	raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
-			// 	System.out.println(arrInd); //tester
-			// 	raf.writeLong(childIDs[arrInd++]);
-			// }
+			int arrInd = 0;
+			for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
+				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
+				System.out.println(arrInd); //tester
+				raf.writeLong(childIDs[arrInd++]);
+			}
 		}else{
-			// int arrInd = childIDs.length/2;
-			// for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
-			// 	raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
-			// 	System.out.println(arrInd); //tester
-			// 	raf.writeLong(childIDs[arrInd++]);
-			// }
+			int arrInd = childIDs.length/2;
+			for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
+				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
+				System.out.println(arrInd); //tester
+				raf.writeLong(childIDs[arrInd++]);
+			}
 		}
 
 		System.out.println(Arrays.toString(childIDs)); //tester
