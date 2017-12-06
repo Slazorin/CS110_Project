@@ -169,17 +169,24 @@ public class BTree{
 		for( int i = (ORDER/2) + 1; i < ORDER; i++ ){
 			simpleInsert(keys[i], VSRecs[i], newChildNode);
 		}
-		//delete shifted values from left node (original node) and promoted median
-		deleteShiftedValues(node);
+		
 		//Promote median to its proper node
 		simpleInsert(keys[ORDER/2],VSRecs[ORDER/2],parentNode);
+
+		//delete shifted values from left node (original node) and promoted median
+		deleteShiftedValues(node);
 		//Insert key to be inserted to original node if it's not the median
 		if(key != keys[ORDER/2]){
 			simpleInsert(key, cvs, node);
 		}
+
+		//delete shifted values from left node (original node) and promoted median
+		deleteShiftedValues(node);
+
 		//Update child pointers of parent node
 		long[] childIDs = new long[MAX_SPLIT_NODES];
 		childIDs[0] = node; childIDs[1] = newChildNode;
+
 		//Get old index of childIDs if not a new parent
 		if(newParent){
 			setChildPointers(parentNode, 1, childIDs);
@@ -187,16 +194,19 @@ public class BTree{
 			long startIndex = getChildIndex(parentNode,node);
 			setChildPointers(parentNode, startIndex, childIDs);
 		}
+
 		//Update parent pointers of children
 		setParent(node,parentNode); setParent(newChildNode,parentNode);
-		if( node == root ){//if the node that splits is the root, update root number
+		
+		//if the node that splits is the root, update root number
+		if( node == root ){
 			raf.seek(BYTES_PER_ENTRY);
 			raf.writeLong(parentNode);
 		}
+
 		//update record number
 		raf.seek(INIT_POS);
 		raf.writeLong(btNumRec);
-
 	}
 
 	public void deleteShiftedValues(long origNode) throws IOException{
@@ -244,7 +254,7 @@ public class BTree{
 	}
 
 	public void shiftValues(long node, long correctInd) throws IOException{
-		for(long ind = 3*(MAX_KEYS)+2; ind > correctInd; ind-=3){
+		for(long ind = 3*(MAX_KEYS)-1; ind > correctInd; ind-=3){
 			//read value from previous position
 			raf.seek(HEADER_BYTES + (node*BYTES_PER_NODE) + (ind-3)*BYTES_PER_ENTRY);
 			long prevKey = raf.readLong();
