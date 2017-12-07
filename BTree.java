@@ -80,11 +80,10 @@ public class BTree{
 		}
 		
 		if(!isFull(initCorrRec)){
-			System.out.println(key + " inserted");
 			return simpleInsert(key, vNumRec, initCorrRec);
 		}else{
 			split(key,initCorrRec);
-			verdict = key + " inserted." + "SPLIT HAPPENED";
+			verdict = key + " inserted.";
 		}
 
 		return verdict;
@@ -96,7 +95,6 @@ public class BTree{
 		long root = raf.readLong();
 		long record = root;
 		while(hasChild(record)){
-			System.out.println(record); //tester
 			long index = 2; //first key
 			//formula for correct key
 			raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + index*BYTES_PER_ENTRY); //skips first 2 numbers in record
@@ -126,7 +124,6 @@ public class BTree{
 					}
 				}
 			}
-			System.out.println(record); //tester
 		}
 		return record;
 	}
@@ -213,7 +210,6 @@ public class BTree{
 			newParent = true;
 		}
 		long[] keys = getKeys(key,node);
-		System.out.println(Arrays.toString(keys)); //tester
 		long[] VSRecs = getVSRecs(keys,node);
 		
 		//Insert latter children into new right node created
@@ -245,7 +241,6 @@ public class BTree{
 			long[] childOfChildIDs = new long[ORDER+1]; //when split happens above lowest level, it means they already have ORDER+1 children
 			int tempArrInd = 0; long tempIDInd = 0;
 			long indOfNewChildOfChild = splitChildren.pop();
-			System.out.println(indOfNewChildOfChild); //tester
 			while(tempArrInd <= ORDER){
 				if(tempArrInd == indOfNewChildOfChild){
 					childOfChildIDs[tempArrInd++] = splitChildren.pop();
@@ -278,7 +273,6 @@ public class BTree{
 		//Update child pointers of parent node
 		long[] childIDs = new long[MAX_SPLIT_NODES];
 		childIDs[0] = node; childIDs[1] = newChildNode;
-		System.out.println("Parent node is " + parentLNode); //tester STILL CLASHES WITH THIS (parentLNode)
 		setChildPointers(parentLNode, startIndex, childIDs); ///STILL CLASHES WITH THIS (parentLNode)
 
 		//Update parent pointers of children
@@ -343,20 +337,15 @@ public class BTree{
 			int arrInd = 0;
 			for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
 				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
-				System.out.println(arrInd); //tester
 				raf.writeLong(childIDs[arrInd++]);
 			}
 		}else{
 			int arrInd = childIDs.length/2;
 			for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
 				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
-				System.out.println(arrInd); //tester
 				raf.writeLong(childIDs[arrInd++]);
 			}
 		}
-
-		System.out.println(Arrays.toString(childIDs)); //tester
-
 	}
 
 	public long getChildIndex(long parentNode, long nodeToSplit) throws IOException{
@@ -496,10 +485,11 @@ public class BTree{
 	public String update(long key, String newVal) throws IOException{
 		String verdict = "";
 		long index = isCopy(key);
-		if(index == DEF_VALUE){
+		long node = findKey(key);
+		if(node == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
 		}else{
-			raf.seek(HEADER_BYTES+(index+1)*BYTES_PER_ENTRY);
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + (index+1)*BYTES_PER_ENTRY);
 			long numOnVS = raf.readLong();
 			vs.updateVal(numOnVS,newVal);
 			verdict = key + " updated" + ".";
