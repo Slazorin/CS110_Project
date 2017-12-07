@@ -130,6 +130,39 @@ public class BTree{
 		}
 		return record;
 	}
+
+	public long findKey(long key) throws IOException{ //not troubleshooted yet
+		//if it returns DEF_VALUE then that means it's not in the tree
+		long record = DEF_VALUE;
+		raf.seek(BYTES_PER_ENTRY);//get root note location
+		long root = raf.readLong();
+		while(hasChild(record)){
+			long index = 2; //first key
+			//formula for correct key
+			while(index < NUM_POINTERS){
+				raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + index*BYTES_PER_ENTRY); //skips first 2 numbers in record
+				long compareKey = raf.readLong();
+				if(compareKey == key){
+					return record;
+				}else if(key < compareKey){
+					raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + (index-1)*BYTES_PER_ENTRY);// formula for correct childNode
+					long child = raf.readLong();
+					record = child;
+					break;
+				}else if(key > compareKey){
+					index+=3;
+					if(index >= NUM_POINTERS){
+						raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + (index-1)*BYTES_PER_ENTRY);// formula for correct childNode
+						long child = raf.readLong();
+						record = child;
+						break;
+					}
+				}
+			}
+
+		}
+		return record;
+	}
 	
 	public boolean hasChild(long node) throws IOException{
 		long ind = HEADER_BYTES + node*BYTES_PER_NODE + BYTES_PER_ENTRY;
