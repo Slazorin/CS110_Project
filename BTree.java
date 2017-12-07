@@ -415,6 +415,9 @@ public class BTree{
 
 	public long isCopySU(long key) throws IOException{
 		long node = findKey(key);
+		if(node == DEF_VALUE){ //if key isn't in any node then key doesn't exist so terminate method
+			return node;
+		}
 		long isCopy = DEF_VALUE;
 		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
 			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
