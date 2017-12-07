@@ -400,6 +400,20 @@ public class BTree{
 	}
 
 	public long isCopy(long key) throws IOException{
+		long node = findCorrectNode(key);
+		long isCopy = DEF_VALUE;
+		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
+			long currKey = raf.readLong();
+			if(currKey == key){
+				isCopy = ind;
+				break;
+			}
+		}
+		return isCopy;
+	}
+
+	public long isCopySU(long key) throws IOException{
 		long node = findKey(key);
 		long isCopy = DEF_VALUE;
 		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
@@ -468,7 +482,7 @@ public class BTree{
 
 	public String select(long key) throws IOException{
 		String verdict = "";
-		long index = isCopy(key);
+		long index = isCopySU(key);
 		long node = findKey(key);
 		if(node == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
@@ -484,7 +498,7 @@ public class BTree{
 
 	public String update(long key, String newVal) throws IOException{
 		String verdict = "";
-		long index = isCopy(key);
+		long index = isCopySU(key);
 		long node = findKey(key);
 		if(node == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
