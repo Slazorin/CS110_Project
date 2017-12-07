@@ -4,6 +4,8 @@ import java.lang.*;
 public class ValueStore{
 	public static final int INIT_RECORDS = 0;
 	public static final int INIT_POS = 0;
+	public static final long BYTES_PER_ENTRY = 8;
+	public static final long BYTES_PER_STRING = 258;
 	public static long numRec;
 	public static RandomAccessFile raf;
 
@@ -28,7 +30,7 @@ public class ValueStore{
 	}
 
 	public long addValue(String val) throws IOException{
-		raf.seek(8 + numRec*258);
+		raf.seek(BYTES_PER_ENTRY + numRec*BYTES_PER_STRING);
 		byte[] byteArray = val.getBytes("UTF8");
 		raf.writeShort(val.length());
 		raf.write(byteArray);
@@ -40,12 +42,12 @@ public class ValueStore{
 	
 	//fix format
 	public String getValue(long index) throws IOException{
-		raf.seek(8+index*258);
+		raf.seek(BYTES_PER_ENTRY+index*BYTES_PER_STRING);
 		return raf.readUTF();
 	}
 
 	public void updateVal(long index, String newVal) throws IOException{
-		raf.seek(8+index*258);
+		raf.seek(BYTES_PER_ENTRY+index*BYTES_PER_STRING);
 		raf.writeUTF(newVal);
 	}
 }
