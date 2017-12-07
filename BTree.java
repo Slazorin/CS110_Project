@@ -136,6 +136,7 @@ public class BTree{
 		long record = DEF_VALUE;
 		raf.seek(BYTES_PER_ENTRY);//get root note location
 		long root = raf.readLong();
+		record = root;
 		while(hasChild(record)){
 			long index = 2; //first key
 			//formula for correct key
@@ -154,6 +155,9 @@ public class BTree{
 					if(index >= NUM_POINTERS){
 						raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + (index-1)*BYTES_PER_ENTRY);// formula for correct childNode
 						long child = raf.readLong();
+						if(child == DEF_VALUE){
+							return DEF_VALUE;
+						}
 						record = child;
 						break;
 					}
@@ -407,7 +411,7 @@ public class BTree{
 	}
 
 	public long isCopy(long key) throws IOException{
-		long node = findCorrectNode(key);
+		long node = findKey(key);
 		long isCopy = DEF_VALUE;
 		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
 			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
@@ -476,10 +480,11 @@ public class BTree{
 	public String select(long key) throws IOException{
 		String verdict = "";
 		long index = isCopy(key);
-		if(index == DEF_VALUE){
+		long node = findKey(key);
+		if(node == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
 		}else{
-			raf.seek(HEADER_BYTES+(index+1)*BYTES_PER_ENTRY);
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + (index+1)*BYTES_PER_ENTRY);
 			long numOnVS = raf.readLong();
 			String val = vs.getValue(numOnVS);
 			verdict = key + " ==> " + val;
