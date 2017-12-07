@@ -225,18 +225,23 @@ public class BTree{
 			startIndex = getChildIndex(parentLNode,node);
 		}
 
+		//Update child pointers of parent node (doesn't consider if parent will split)
+		long[] childIDs = new long[MAX_SPLIT_NODES];
+		childIDs[0] = node; childIDs[1] = newChildNode;
+		setChildPointers(parentLNode, startIndex, childIDs); ///STILL CLASHES WITH THIS (parentLNode)
+
 		if(isFull(parentLNode)){ //only add to stack if there's a chain split
 			//add to the stack before promoting median so that if parent needs to split, it can point to the new child  (which won't be stored in the 8th position if ever)
 			splitChildren.push(newChildNode); //push the new child of the parent
 			splitChildren.push( ((startIndex-1)/3) + 1 ); //push which child (ex. 0,1,2,etc.) the newChild will be for the parent (weird formula was used to get simple index from 1 to number of keys instead of 0-19)
 			parentRNode = btNumRec;
 		}
-
 		
 		//Promote median to its proper node (if parent node is full, it will trigger a recursion)
 		addValue(keys[ORDER/2],VSRecs[ORDER/2],parentLNode);
 
 		//Update child pointers of children if it has children
+		long indOfOrigNode = startIndex; //patchy fix
 		if(!splitChildren.isEmpty()){
 			long[] childOfChildIDs = new long[ORDER+1]; //when split happens above lowest level, it means they already have ORDER+1 children
 			int tempArrInd = 0; long tempIDInd = 0;
@@ -258,6 +263,7 @@ public class BTree{
 			for(int i = arrSize/2; i < arrSize; i++){
 				setParent(childOfChildIDs[i], newChildNode);
 			}
+			indOfOrigNode = Arrays.binarySearch(childOfChildIDs, node); //patchy fix
 		}
 		
 		//delete shifted values from left node (original node) and promoted median
@@ -270,21 +276,28 @@ public class BTree{
 		//delete shifted values from left node (original node) and promoted median
 		deleteShiftedValues(node);
 
-		//Update child pointers of parent node
-		long[] childIDs = new long[MAX_SPLIT_NODES];
-		childIDs[0] = node; childIDs[1] = newChildNode;
-		setChildPointers(parentLNode, startIndex, childIDs); ///STILL CLASHES WITH THIS (parentLNode)
-
-		//Update parent pointers of children
-		if(isAChild(node,parentLNode)){
-			setParent(node, parentLNode);
-		}else{
+		//patchy fix
+		if(indOfOrigNode >= ORDER/2){
 			setParent(node, parentRNode);
+			System.out.println(node + " is a child of " + parentRNode); //tester
+		}else{
+			setParent(node, parentLNode);
+			System.out.println(node + " is a child of " + parentLNode); //tester
 		}
+		// //Update parent pointers of children
+		// if(isAChild(node,parentLNode)){
+		// 	setParent(node, parentLNode);
+		// 	System.out.println(node + " is a child of " + parentLNode); //tester
+		// }else{
+		// 	setParent(node, parentRNode);
+		// 	System.out.println(node + " is a child of " + parentRNode); //tester
+		// }
 		if(isAChild(newChildNode,parentLNode)){
 			setParent(newChildNode, parentLNode);
+			System.out.println(newChildNode + " is a child of " + parentLNode); //tester
 		}else{
 			setParent(newChildNode, parentRNode);
+			System.out.println(newChildNode + " is a child of " + parentRNode); //tester
 		}
 		
 		//if the node that splits is the root, update root number
@@ -416,48 +429,48 @@ public class BTree{
 	public long isCopySU(long key) throws IOException{
 		long node = findKey(key);
 		if(node == DEF_VALUE){ //if key isn't in any node then key doesn't exist so terminate method
-			return node;
-		}
-		long isCopy = DEF_VALUE;
-		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
-			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
-			long currKey = raf.readLong();
-			if(currKey == key){
-				isCopy = ind;
-				break;
-			}
-		}
-		return isCopy;
+		return node;
 	}
-
-	public boolean isFull(long node) throws IOException{
-		raf.seek(node*BYTES_PER_NODE + HEADER_BYTES + LAST_OFFSET*BYTES_PER_ENTRY);
-		long curr = raf.readLong();
-		if( curr != DEF_VALUE ){
-			return true;
+	long isCopy = DEF_VALUE;
+	for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
+		raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
+		long currKey = raf.readLong();
+		if(currKey == key){
+			isCopy = ind;
+			break;
 		}
-		return false;
 	}
+	return isCopy;
+}
 
-	public long[] getKeys(long key, long node) throws IOException{
-		long[] keys = new long[ORDER];
-		int arrInd = 0;
-		for(int ind = 2; ind < NUM_POINTERS; ind+=3){
-			raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
-			keys[arrInd++] = raf.readLong(); 
-
-		}
-		keys[arrInd] = key;
-		Arrays.sort(keys);
-		return keys;
+public boolean isFull(long node) throws IOException{
+	raf.seek(node*BYTES_PER_NODE + HEADER_BYTES + LAST_OFFSET*BYTES_PER_ENTRY);
+	long curr = raf.readLong();
+	if( curr != DEF_VALUE ){
+		return true;
 	}
+	return false;
+}
 
-	public long[] getVSRecs(long[] keys, long node) throws IOException{
-		long[] VSRecs = new long[ORDER];
-		int arrInd = 0;
-		for(int ind = 2; ind < NUM_POINTERS; ind += 3){
-			raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
-			long currKey = raf.readLong();
+public long[] getKeys(long key, long node) throws IOException{
+	long[] keys = new long[ORDER];
+	int arrInd = 0;
+	for(int ind = 2; ind < NUM_POINTERS; ind+=3){
+		raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
+		keys[arrInd++] = raf.readLong(); 
+
+	}
+	keys[arrInd] = key;
+	Arrays.sort(keys);
+	return keys;
+}
+
+public long[] getVSRecs(long[] keys, long node) throws IOException{
+	long[] VSRecs = new long[ORDER];
+	int arrInd = 0;
+	for(int ind = 2; ind < NUM_POINTERS; ind += 3){
+		raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
+		long currKey = raf.readLong();
 			if(currKey == keys[arrInd]){ //if same then get vsnumrec vaue
 				VSRecs[arrInd++] = raf.readLong();
 			}
