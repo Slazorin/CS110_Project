@@ -13,7 +13,7 @@ public class BTree{
 	public static final long NOT_PARENT = -1;
 	public static final long BYTES_PER_NODE = ((3*ORDER)-1)*BYTES_PER_ENTRY;
 	public static final int HEADER_BYTES = 16;
-	public static final int LAST_OFFSET = 18;
+	public static final int LAST_OFFSET = ORDER*3-3;
 	public static final int NUM_POINTERS = 3*ORDER-1;
 	public static final long MAX_KEYS = ORDER - 1;
 	public static long END_OF_FILE = BYTES_PER_NODE*(btNumRec); 
@@ -131,7 +131,7 @@ public class BTree{
 	public long findKey(long key) throws IOException{ //not troubleshooted yet
 		//if it returns DEF_VALUE then that means it's not in the tree
 		long record = DEF_VALUE;
-		raf.seek(BYTES_PER_ENTRY);//get root note location
+		raf.seek(BYTES_PER_ENTRY); //get root node location
 		long root = raf.readLong();
 		record = root;
 		while(hasChild(record)){
@@ -157,6 +157,18 @@ public class BTree{
 						}
 						record = child;
 						break;
+					}else{
+						raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
+						if(raf.readLong() == DEF_VALUE){
+							raf.seek(HEADER_BYTES + record*BYTES_PER_NODE + (index-1)*BYTES_PER_ENTRY);// formula for correct childNode
+							long child = raf.readLong();
+							if(child == DEF_VALUE){
+								return DEF_VALUE;
+							}
+							record = child;
+							break;
+						}
+
 					}
 				}
 			}
@@ -203,12 +215,14 @@ public class BTree{
 
 
 		long parentLNode = getParent(node);
-		long parentRNode = parentLNode; //default value is original node if parent does not split
+		long origParentNode = parentLNode;
 		if(parentLNode == DEF_VALUE){
 			initRec(END_OF_FILE);
 			parentLNode = btNumRec++;
 			newParent = true;
 		}
+		long parentRNode = parentLNode; //default value is original node if parent does not split
+
 		long[] keys = getKeys(key,node);
 		long[] VSRecs = getVSRecs(keys,node);
 		
@@ -231,12 +245,13 @@ public class BTree{
 			splitChildren.push( ((startIndex-1)/3) + 1 ); //push which child (ex. 0,1,2,etc.) the newChild will be for the parent (weird formula was used to get simple index from 1 to number of keys instead of 0-19)
 			parentRNode = btNumRec;
 		}
-
 		
 		//Promote median to its proper node (if parent node is full, it will trigger a recursion)
 		addValue(keys[ORDER/2],VSRecs[ORDER/2],parentLNode);
 
 		//Update child pointers of children if it has children
+		long indOfOrigNode = (startIndex-1)/3; //patchy fix
+		long indOfNewNode = ((startIndex-1)/3) + 1; //patchy fix
 		if(!splitChildren.isEmpty()){
 			long[] childOfChildIDs = new long[ORDER+1]; //when split happens above lowest level, it means they already have ORDER+1 children
 			int tempArrInd = 0; long tempIDInd = 0;
@@ -258,33 +273,44 @@ public class BTree{
 			for(int i = arrSize/2; i < arrSize; i++){
 				setParent(childOfChildIDs[i], newChildNode);
 			}
+			indOfOrigNode = Arrays.binarySearch(childOfChildIDs, node); //patchy fix
+			indOfNewNode = Arrays.binarySearch(childOfChildIDs, newChildNode);
 		}
 		
 		//delete shifted values from left node (original node) and promoted median
 		deleteShiftedValues(node);
+
 		//Insert key to be inserted to original node if it's not the median
 		if(key != keys[ORDER/2]){
-			simpleInsert(key, cvs, node);
+			int indOfCVS = Arrays.binarySearch(keys, key); //new change
+			simpleInsert(key, VSRecs[indOfCVS], node); //new change cvs to VSRecs[indOfCVS]
 		}
 
 		//delete shifted values from left node (original node) and promoted median
 		deleteShiftedValues(node);
 
-		//Update child pointers of parent node
-		long[] childIDs = new long[MAX_SPLIT_NODES];
-		childIDs[0] = node; childIDs[1] = newChildNode;
-		setChildPointers(parentLNode, startIndex, childIDs); ///STILL CLASHES WITH THIS (parentLNode)
-
-		//Update parent pointers of children
-		if(isAChild(node,parentLNode)){
-			setParent(node, parentLNode);
-		}else{
-			setParent(node, parentRNode);
+		//Update child pointers of parent node (now considers if parent will split)
+		if(getParent(node) == origParentNode){
+			long[] childIDs = new long[MAX_SPLIT_NODES];
+			childIDs[0] = node; childIDs[1] = newChildNode;
+			//edit that may have fucked it
+			if(getParent(newChildNode) != DEF_VALUE){
+				childIDs[1] = DEF_VALUE;
+			}
+			setChildPointers(parentLNode, startIndex, childIDs);
 		}
-		if(isAChild(newChildNode,parentLNode)){
-			setParent(newChildNode, parentLNode);
+
+		//patchy fix
+		if(indOfOrigNode > ORDER/2){
+			setParent(node, parentRNode);
 		}else{
+			setParent(node, parentLNode);
+		}
+
+		if(indOfNewNode > ORDER/2){
 			setParent(newChildNode, parentRNode);
+		}else{
+			setParent(newChildNode, parentLNode);
 		}
 		
 		//if the node that splits is the root, update root number
@@ -315,6 +341,7 @@ public class BTree{
 			raf.seek(HEADER_BYTES + origNode*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
 			raf.writeLong(DEF_VALUE);
 			raf.writeLong(DEF_VALUE);
+			raf.writeLong(DEF_VALUE);
 		}
 	}
 
@@ -323,6 +350,7 @@ public class BTree{
 		shiftChildIDs(parentNode,startIndex);
 		int childIndex = 0;
 		for( long index = startIndex; index < startIndex + (3*MAX_SPLIT_NODES); index += 3 ){
+			if(index >= NUM_POINTERS) break; //makes sure second child doesn't overflow into node next to parentNode
 			raf.seek(HEADER_BYTES + parentNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
 			raf.writeLong(childIDs[childIndex++]);
 		}
@@ -339,11 +367,21 @@ public class BTree{
 				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
 				raf.writeLong(childIDs[arrInd++]);
 			}
+			//Deletes excess childIDs that belong to the other node (if any)
+			for(int index = NUM_POINTERS/2 + 3; index < NUM_POINTERS; index+=3){
+				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
+				raf.writeLong(DEF_VALUE);
+			}
 		}else{
 			int arrInd = childIDs.length/2;
 			for( int index = 1; index <= NUM_POINTERS/2; index += 3 ){
 				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
 				raf.writeLong(childIDs[arrInd++]);
+			}
+			//Deletes excess childIDs that belong to the other node (if any)
+			for(int index = NUM_POINTERS/2 + 3; index < NUM_POINTERS; index+=3){
+				raf.seek(HEADER_BYTES + newNode*BYTES_PER_NODE + index*BYTES_PER_ENTRY);
+				raf.writeLong(DEF_VALUE);
 			}
 		}
 	}
@@ -413,6 +451,24 @@ public class BTree{
 		return isCopy;
 	}
 
+	public long isCopySU(long key) throws IOException{
+		long node = findKey(key);
+		if(node == DEF_VALUE){ //if key isn't in any node then key doesn't exist so terminate method
+			return node;
+		}
+
+		long isCopy = DEF_VALUE;
+		for(long ind = 2; ind <= NUM_POINTERS-3; ind+=3){
+			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + ind*BYTES_PER_ENTRY);
+			long currKey = raf.readLong();
+			if(currKey == key){
+				isCopy = ind;
+				break;
+			}
+		}
+		return isCopy;
+	}
+
 	public boolean isFull(long node) throws IOException{
 		raf.seek(node*BYTES_PER_NODE + HEADER_BYTES + LAST_OFFSET*BYTES_PER_ENTRY);
 		long curr = raf.readLong();
@@ -441,16 +497,19 @@ public class BTree{
 		for(int ind = 2; ind < NUM_POINTERS; ind += 3){
 			raf.seek(HEADER_BYTES+(node*BYTES_PER_NODE)+ind*BYTES_PER_ENTRY);
 			long currKey = raf.readLong();
-			if(currKey == keys[arrInd]){ //if same then get vsnumrec vaue
-				VSRecs[arrInd++] = raf.readLong();
-			}
-			else{
-				VSRecs[arrInd++] = cvs;
-				VSRecs[arrInd++] = raf.readLong();
-			}
+				if(currKey == keys[arrInd]){ //if same then get vsnumrec vaue
+					VSRecs[arrInd++] = raf.readLong();
+				}
+				else{
+					VSRecs[arrInd++] = cvs;
+					VSRecs[arrInd++] = raf.readLong();
+				}
 
-		}
-		return VSRecs;
+			}
+		if(VSRecs[ORDER-1] == INIT_VAL){ //the array isn't full so cvs wasnt inserted
+		VSRecs[ORDER-1] = cvs;
+	} 
+	return VSRecs;
 	}
 
 
@@ -468,9 +527,9 @@ public class BTree{
 
 	public String select(long key) throws IOException{
 		String verdict = "";
-		long index = isCopy(key);
+		long index = isCopySU(key);
 		long node = findKey(key);
-		if(node == DEF_VALUE){
+		if(node == DEF_VALUE || index == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
 		}else{
 			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + (index+1)*BYTES_PER_ENTRY);
@@ -484,9 +543,9 @@ public class BTree{
 
 	public String update(long key, String newVal) throws IOException{
 		String verdict = "";
-		long index = isCopy(key);
+		long index = isCopySU(key);
 		long node = findKey(key);
-		if(node == DEF_VALUE){
+		if(node == DEF_VALUE || index == DEF_VALUE){
 			verdict = "ERROR: " + key + " does not exist.";
 		}else{
 			raf.seek(HEADER_BYTES+ node*BYTES_PER_NODE + (index+1)*BYTES_PER_ENTRY);
@@ -512,5 +571,5 @@ public class BTree{
 		}
 		System.out.println(sb);
 	}
-	
+
 }
